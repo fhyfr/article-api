@@ -19,6 +19,7 @@ class ArticlesHandler {
       const articleId = await this.service.addNewArticle({ author, title, body });
 
       const response = h.response({
+        status: 'success',
         message: 'Article successfully created',
         data: {
           articleId,

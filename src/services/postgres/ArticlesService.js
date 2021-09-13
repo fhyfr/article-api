@@ -45,7 +45,7 @@ class ArticlesService {
       return JSON.parse(result);
     } catch (error) {
       const query = {
-        text: 'SELECT author, title, body FROM articles WHERE author LIKE $1 ORDER BY created DESC',
+        text: 'SELECT author, title, body, created AS created_at FROM articles WHERE author LIKE $1 ORDER BY created DESC',
         values: [`%${author}%`],
       };
 

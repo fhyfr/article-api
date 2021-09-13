@@ -1,4 +1,5 @@
 const errorHandler = require('../../exceptions/ErrorHandler');
+const InvariantError = require('../../exceptions/InvariantError');
 
 class ArticlesHandler {
   constructor(service, validator) {
@@ -6,6 +7,7 @@ class ArticlesHandler {
     this.validator = validator;
 
     this.postArticleHandler = this.postArticleHandler.bind(this);
+    this.getArticleByIndexHandler = this.getArticleByIndexHandler.bind(this);
   }
 
   async postArticleHandler(request, h) {
@@ -24,6 +26,57 @@ class ArticlesHandler {
       });
       response.code(201);
       return response;
+    } catch (error) {
+      return errorHandler(error, h);
+    }
+  }
+
+  async getArticleByIndexHandler(request, h) {
+    try {
+      const params = request.query;
+
+      if (
+        (params.author && params.body && params.title)
+        || (params.author && params.body)
+        || (params.author && params.title)
+      ) {
+        throw new InvariantError('Bad Request, invalid query parameters');
+      }
+
+      if (params.title || params.body) {
+        const { title, body } = request.query;
+
+        const articles = await this.service.getArticleByTitleAndBody(title, body);
+
+        return {
+          status: 'success',
+          data: {
+            articles,
+          },
+        };
+      }
+
+      if (params.author) {
+        const { author } = request.query;
+
+        const articles = await this.service.getArtilceByAuthor(author);
+
+        return {
+          status: 'success',
+          data: {
+            articles,
+          },
+        };
+      }
+
+      const articles = await this.service.getAllArticles();
+
+      return {
+        status: 'success',
+        data: {
+          articles,
+        },
+      };
     } catch (error) {
       return errorHandler(error, h);
     }

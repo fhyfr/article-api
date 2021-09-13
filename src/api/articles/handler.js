@@ -35,18 +35,14 @@ class ArticlesHandler {
     try {
       const params = request.query;
 
-      if (
-        (params.author && params.body && params.title)
-        || (params.author && params.body)
-        || (params.author && params.title)
-      ) {
+      if (params.author && params.keyword) {
         throw new InvariantError('Bad Request, invalid query parameters');
       }
 
-      if (params.title || params.body) {
-        const { title, body } = request.query;
+      if (params.keyword) {
+        const { keyword } = request.query;
 
-        const articles = await this.service.getArticleByTitleAndBody(title, body);
+        const articles = await this.service.getArticleByKeyword(keyword);
 
         return {
           status: 'success',

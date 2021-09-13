@@ -6,8 +6,12 @@ const articles = require('./api/articles');
 const ArticlesService = require('./services/postgres/ArticlesService');
 const ArtilcesValidator = require('./validator/articles');
 
+// cache
+const CacheService = require('./services/redis/CacheService');
+
 const init = async () => {
-  const articlesService = new ArticlesService();
+  const cacheService = new CacheService();
+  const articlesService = new ArticlesService(cacheService);
 
   const server = Hapi.server({
     port: process.env.PORT,

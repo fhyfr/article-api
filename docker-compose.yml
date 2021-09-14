@@ -1,0 +1,27 @@
+version: "3"
+services:
+  redis:
+    image: redis
+    networks:
+      - webnet
+  db:
+    image: postgres
+    networks:
+      - webnet
+    environment:
+      POSTGRES_PASSWORD: superadmin
+      POSTGRES_USER: superadmin
+      POSTGRES_DB: articleapi
+  web:
+    build: .
+    container_name: article-api-server
+    ports:
+      - "3000:3000"
+    networks:
+      - webnet
+    environment:
+      DB_HOST: db
+      REDIS_SERVER: redis
+      WAIT_HOSTS: db:5432
+networks:
+  webnet:

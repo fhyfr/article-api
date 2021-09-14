@@ -6,8 +6,12 @@ const articles = require('./api/articles');
 const ArticlesService = require('./services/postgres/ArticlesService');
 const ArtilcesValidator = require('./validator/articles');
 
+// cache
+const CacheService = require('./services/redis/CacheService');
+
 const init = async () => {
-  const articlesService = new ArticlesService();
+  const cacheService = new CacheService();
+  const articlesService = new ArticlesService(cacheService);
 
   const server = Hapi.server({
     port: process.env.PORT,
@@ -41,7 +45,7 @@ const init = async () => {
 
   await server.start();
   // eslint-disable-next-line no-console
-  console.log(`Server berjalan pada ${server.info.uri}`);
+  console.log(`Server running on ${server.info.uri}`);
 };
 
 init();

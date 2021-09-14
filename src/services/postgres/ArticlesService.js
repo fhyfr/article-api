@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 const InvariantError = require('../../exceptions/InvariantError');
 const NotFoundError = require('../../exceptions/NotFoundError');
+const { mapDBToModel } = require('../../utils');
 
 class ArticlesService {
   constructor(cacheService) {
@@ -12,74 +13,84 @@ class ArticlesService {
     author, title, body,
   }) {
     const query = {
-      text: 'INSERT INTO articles(author, title, body) VALUES($1, $2, $3) RETURNING id',
+      text: 'INSERT INTO articles(author, title, body) VALUES($1, $2, $3) RETURNING id, author, title, body, created',
       values: [author, title, body],
     };
+
     const result = await this.pool.query(query);
 
     if (!result.rows[0].id) {
       throw new InvariantError('Failed insert article');
     }
 
-    await this.cacheService.delete('articles');
+    // cache article to redis
+    const articleId = result.rows[0].id;
+    await this.cacheService.set(`articles:${articleId}`, JSON.stringify(result.rows[0]));
 
     return result.rows[0].id;
   }
 
-  async getAllArticles() {
-    try {
-      const result = await this.cacheService.get('articles');
-      return JSON.parse(result);
-    } catch (error) {
-      const result = await this.pool.query('SELECT author, title, body, created AS created_at FROM articles ORDER BY created DESC');
+  async filterArticleByAuthor(author) {
+    const query = {
+      text: 'SELECT id, author, title FROM articles WHERE author = $1 ORDER BY created DESC',
+      values: [author],
+    };
 
-      await this.cacheService.set('articles', JSON.stringify(result.rows));
+    const result = await this.pool.query(query);
 
-      return result.rows;
+    if (!result.rowCount) {
+      throw new NotFoundError('Article Not Found');
     }
-  }
 
-  async getArtilceByAuthor(author) {
-    try {
-      const result = await this.cacheService.get(`articles:author-${author}`);
-      return JSON.parse(result);
-    } catch (error) {
-      const query = {
-        text: 'SELECT author, title, body, created AS created_at FROM articles WHERE author LIKE $1 ORDER BY created DESC',
-        values: [`%${author}%`],
-      };
-
-      const result = await this.pool.query(query);
-
-      if (!result.rowCount) {
-        throw new NotFoundError('Author not found');
-      }
-
-      await this.cacheService.set(`articles:author-${author}`, JSON.stringify(result.rows));
-
-      return result.rows;
-    }
+    return result.rows;
   }
 
   async getArticleByKeyword(keyword) {
+    if (!keyword) {
+      throw new InvariantError('Bad Request, invalid query parameters');
+    }
+
+    const query = {
+      text: 'SELECT id, title, author FROM articles WHERE title LIKE $1 OR body LIKE $1 ORDER BY created DESC',
+      values: [`%${keyword}%`],
+    };
+
+    const result = await this.pool.query(query);
+
+    if (!result.rowCount) {
+      throw new NotFoundError('Article Not Found');
+    }
+
+    return result.rows;
+  }
+
+  async getDetailsArticle(id) {
+    if (!id) {
+      throw new InvariantError('Bad Request, invalid query parameters');
+    }
+
     try {
-      const result = await this.cacheService.get(`articles:keyword-${keyword}`);
+      // get data from redis if exist
+      const result = await this.cacheService.get(`articles:${id}`);
       return JSON.parse(result);
     } catch (error) {
       const query = {
-        text: 'SELECT author, title, body, created AS created_at FROM articles WHERE title LIKE $1 OR body LIKE $1 ORDER BY created DESC',
-        values: [`%${keyword}%`],
+        text: 'SELECT * FROM articles WHERE id = $1',
+        values: [id],
       };
 
       const result = await this.pool.query(query);
 
       if (!result.rowCount) {
-        throw new NotFoundError('Article not found');
+        throw new NotFoundError('Article Not Found');
       }
 
-      await this.cacheService.set(`articles:keyword-${keyword}`, JSON.stringify(result.rows));
+      const article = result.rows.map(mapDBToModel)[0];
 
-      return result.rows;
+      // cache data to redis
+      await this.cacheService.set(`articles:${id}`, JSON.stringify(article));
+
+      return article;
     }
   }
 }

@@ -1,5 +1,4 @@
 const errorHandler = require('../../exceptions/ErrorHandler');
-const InvariantError = require('../../exceptions/InvariantError');
 
 class ArticlesHandler {
   constructor(service, validator) {
@@ -7,12 +6,14 @@ class ArticlesHandler {
     this.validator = validator;
 
     this.postArticleHandler = this.postArticleHandler.bind(this);
-    this.getArticleByIndexHandler = this.getArticleByIndexHandler.bind(this);
+    this.getArticleByAuthorHandler = this.getArticleByAuthorHandler.bind(this);
+    this.getArticleByKeywordHandler = this.getArticleByKeywordHandler.bind(this);
+    this.getArticleDetailsByIdHandler = this.getArticleDetailsByIdHandler.bind(this);
   }
 
   async postArticleHandler(request, h) {
     try {
-      this.validator.validateArticlePayload(request.payload);
+      this.validator.validatePostArticlePayload(request.payload);
 
       const { author, title, body } = request.payload;
 
@@ -32,46 +33,50 @@ class ArticlesHandler {
     }
   }
 
-  async getArticleByIndexHandler(request, h) {
+  async getArticleByAuthorHandler(request, h) {
     try {
-      const params = request.query;
+      const { author } = request.params;
 
-      if (params.author && params.keyword) {
-        throw new InvariantError('Bad Request, invalid query parameters');
-      }
-
-      if (params.keyword) {
-        const { keyword } = request.query;
-
-        const articles = await this.service.getArticleByKeyword(keyword);
-
-        return {
-          status: 'success',
-          data: {
-            articles,
-          },
-        };
-      }
-
-      if (params.author) {
-        const { author } = request.query;
-
-        const articles = await this.service.getArtilceByAuthor(author);
-
-        return {
-          status: 'success',
-          data: {
-            articles,
-          },
-        };
-      }
-
-      const articles = await this.service.getAllArticles();
+      const articles = await this.service.filterArticleByAuthor(author);
 
       return {
         status: 'success',
         data: {
           articles,
+        },
+      };
+    } catch (error) {
+      return errorHandler(error, h);
+    }
+  }
+
+  async getArticleByKeywordHandler(request, h) {
+    try {
+      const { keyword } = request.query;
+
+      const articles = await this.service.getArticleByKeyword(keyword);
+
+      return {
+        status: 'success',
+        data: {
+          articles,
+        },
+      };
+    } catch (error) {
+      return errorHandler(error, h);
+    }
+  }
+
+  async getArticleDetailsByIdHandler(request, h) {
+    try {
+      const { id } = request.params;
+
+      const article = await this.service.getDetailsArticle(id);
+
+      return {
+        status: 'success',
+        data: {
+          article,
         },
       };
     } catch (error) {
